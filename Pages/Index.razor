@@ -1,5 +1,79 @@
 ﻿@page "/"
+@using WeightHelper.Data
+@inject WeightCalculatorService WeightCalculatorService
 
-<h1>Hello, world!</h1>
+<h1>welcome to WeightMaster 3000</h1>
 
-Welcome to your new app.
+<p>This will help you calculate the weights required on the bar</p>
+
+<EditForm Model="@_weightSelector" OnSubmit="HandleSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+    <p>
+        <label>
+            Bar weight:
+            <InputNumber @bind-Value="_weightSelector.BarWeight" />
+        </label>
+    </p>
+    <p>
+        <label>
+            Target weight:
+            <InputNumber @bind-Value="_weightSelector.TargetWeight" />
+        </label>
+    </p>
+    <label>Available weights:</label>
+    <p>
+        <label>Add new weight</label>
+        <InputNumber @bind-Value="_weightValue" />
+        <InputCheckbox @bind-Value="_weightAvailable"></InputCheckbox>
+        <button @onclick="AddAvailableWeight">Add weight</button>
+    </p>
+    @foreach (var weight in _weightSelector.AvailableWeights)
+    {
+        <p>
+            <label>
+                @weight.Value KG
+                <InputCheckbox @bind-Value="weight.Available"></InputCheckbox>
+            </label>
+        </p>
+    }
+    <button type="submit" class="btn btn-primary" value="Calculate">Calculate</button>
+</EditForm>
+
+@if(weights != null && weights.Any()){
+    <p>Put these weights on each side</p>
+    @foreach (var weight in weights.GroupBy(w => w).Select(group => new
+    {
+        Weight = group.Key,
+        Count = group.Count()
+    }))
+    {
+        <p>
+            <label>
+                @weight.Count x @weight.Weight
+            </label>
+        </p>
+    }
+}
+
+@code{
+    private WeightSelector _weightSelector = new WeightSelector();
+    private List<double> weights;
+    private double _weightValue;
+    private bool _weightAvailable = false;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        _weightSelector.AvailableWeights = await WeightCalculatorService.GetWeights();
+    }
+
+    private void HandleSubmit(){
+        weights = WeightCalculatorService.CalculateRequiredWeight(_weightSelector.BarWeight, _weightSelector.AvailableWeights, _weightSelector.TargetWeight).Result;
+    }
+
+    private void AddAvailableWeight(){
+        this._weightSelector.AvailableWeights.Add(new Weight{Value = _weightValue, Available = _weightAvailable});
+        _weightValue = 0;
+        _weightAvailable = false;
+    }
+}
